@@ -1,0 +1,94 @@
+创建会话
+第一次登录
+1：request:  username-value(用户名)
+2：params: {
+"userName" : "system",
+"clientType" : "winpc",
+"ipAddress" : "10.10.10.10"   选填
+}
+解释:  clientType(客户端类型 值固定)  ipAddress(客户端地址 用于日志审计)
+
+3：response:  realm(域信息)  readomKey(随机秘钥种子)  encryptType(MD5算法)
+4：url:    /videoService/accounts/authorize   (POST请求)
+
+
+
+第二次登录
+1：计算签名
+pwd1 = md5((passwd-value)
+pwd2 = md5(username-value:pwd1)无：
+pwd3 = md5(pwd2)
+pwd4 = md5(username-value:realm:pwd3)有：
+signature = md5(pwd4:readomKey)  有：
+
+
+2：
+request:   username-value(用户名)    signature(签名)
+param: {
+"userName" : "system",
+"signature" : "ad1290902f8bfb0bd7983111d91ddb6b",
+"randomKey" : "54b53072540eeeb8f8e9343e71f28176_d0e2bdad-1777-446b-b86351257f5558d3",
+"encryptType" : "MD5",
+"clientType" : "winpc",
+"ipAddress" : "10.10.10.10"            (选填)
+}
+3：url:    /videoService/accounts/authorize   (POST请求)
+response:
+{
+"duration" : 120,
+"token" : "S4NbecfYB19QUJHT4T8M7G_Y5524jUq1yNQtu+FruA87hAErnAHoQTEXtUn1AEZz0TKwKi0EIriyrT8ul2ej SGcy7lxWndsP4+GWch2C/fcgy+YAz2GJnbQtRFFbq3XNfi7iAXeEG6O40GKODI2ICTq",
+"userName": "system",
+"userId" : "S4NbecfYB19QUJHT4T8M7G",
+"lastLoginIp": "10.10.10.10"
+}
+
+
+3：获取一个视频通道播放URI资源，URI中带有token信息，流媒体服务端通过token进行鉴权
+uri : /videoService/realmonitor/uri?args   get请求
+request:
+channelId(通道编码)
+subType(。码流类型，0:主码流、1:辅流1、2:辅流2。默认为0主码流。 )
+scheme(协议类型)
+response:
+{    "url" : "rtsp://10.10.10.10:8554/cam/realmonitor? vcuid=AL36PSD5B1AKG077LQTVPF&subtype=0&urlType=pull&streamType=0&token=1536694441_4ed 17114e3c00ad30a176d826cd823a3985a46e8" }
+
+
+注意事项
+1. 必须设置HTTP头的Content-Type: application/json;charset=UTF-8，否则返回415。
+2. 第一次登录成功，响应返回的http 状态码为401
+3. 为便于理解，附上计算通用加密流程签名的Java伪代码片断
+
+JSON response = firstLogin();
+String randomKey = response["randomKey"];
+String realm = response["realm"];
+String userName = xxx; /// 用户名
+String password = yyy; /// 该用户的明文密码
+/// 一共计算五次MD5
+String signature = encrypt(password, "MD5");
+signature = encrypt(userName+signature, "MD5");
+signature = encrypt(signature, "MD5");
+signature = encrypt(userName+":"+realm+":"+signature, "MD5");
+signature = encrypt(signature+":"+randomKey, "MD5");
+
+请求试例参考文档内容
+
+会话保活
+uri : /videoService/accounts/token/keepalive  PUT请求
+requestparams: {"token" : "XXXXXXXXXX"}
+response: {    "code" : 200,    "message" : "success" }
+note:
+必须在HTTP请求头带上X-Subject-Token，且和请求体的token内容一致
+保活周期建议使用创建会话时返回duration值的3/4。
+
+final : 参考文档文档常见问题排查
+
+errorcode:
+415 : Content-Type : application/json;charset=UTF-8
+520:  必填字段未填写
+确保HTTP头部带了正确的X-Subject-Token
+
+
+
+
+
+
